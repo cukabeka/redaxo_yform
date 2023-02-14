@@ -56,9 +56,15 @@ $attributes = $this->getAttributeElements($attributes, ['placeholder', 'autocomp
 </div>
 
 <script type="text/javascript">
-    $(document).on("rex:ready", function(){
-        initSignature_<?= $this->getName(); ?>();
-    });
+    if (typeof rex !== 'undefined' && rex.backend) {
+        $(document).on("rex:ready", function(){
+            initSignature_<?= $this->getName(); ?>();
+        });
+    } else {
+        $(document).ready(function(){
+            initSignature_<?= $this->getName(); ?>();
+        });
+    }
 
     function initSignature_<?= $this->getName(); ?>() {
         let base_id = '<?= $this->getName(); ?>',
@@ -79,25 +85,68 @@ $attributes = $this->getAttributeElements($attributes, ['placeholder', 'autocomp
         w = canvas.width = $(canvas).width();
         h = canvas.height = $(canvas).height();
 
-        canvas.addEventListener("mousemove", function (e) {
-            findxy('move', e)
-        }, false);
-        canvas.addEventListener("mousedown", function (e) {
-            findxy('down', e)
-        }, false);
-        canvas.addEventListener("mouseup", function (e) {
-            findxy('up', e)
-        }, false);
-        canvas.addEventListener("mouseout", function (e) {
-            findxy('out', e)
-        }, false);
+        canvas.addEventListener("mousedown", handleStart, false);
+        canvas.addEventListener("mousemove", handleMove, false);
+        canvas.addEventListener("mouseup", handleEnd, false);
+        canvas.addEventListener("mouseout", handleCancel, false);
+
+        canvas.addEventListener("touchstart", handleStart, false);
+        canvas.addEventListener("touchmove", handleMove, false);
+        canvas.addEventListener("touchend", handleEnd, false);
+        canvas.addEventListener("touchcancel", handleCancel, false);
+
+        function handleStart(evt) {
+            evt.preventDefault();
+            flag = true;
+            dot_flag = true;
+            if (evt.touches) {
+                let touch = evt.touches[0];
+                prevX = currX = touch.clientX;
+                prevY = currY = touch.clientY;
+            } else {
+                prevX = currX = evt.clientX;
+                prevY = currY = evt.clientY;
+            }
+            if (dot_flag) {
+                ctx.beginPath();
+                ctx.fillStyle = x;
+                ctx.fillRect(currX, currY, 2, 2);
+                ctx.closePath();
+                dot_flag = false;
+            }
+        }
+
+        function handleMove(evt) {
+            evt.preventDefault();
+            if (flag) {
+                prevX = currX;
+                prevY = currY;
+                if (evt.touches) {
+                    let touch = evt.touches[0];
+                    currX = touch.clientX;
+                    currY = touch.clientY;
+                } else {
+                    currX = evt.clientX;
+                    currY = evt.clientY;
+                }
+                draw();
+            }
+        }
+
+        function handleEnd(evt) {
+            evt.preventDefault();
+            flag = false;
+        }
+
+        function handleCancel(evt) {
+            evt.preventDefault();
+            flag = false;
+        }
 
         function draw() {
             let offset = $(canvas).offset();
             let scrollTop = $("html").scrollTop();
             let scrollLeft = $("html").scrollLeft();
-
-            //console.log((prevX - offset.left + scrollLeft)+" | "+(prevY - offset.top + scrollTop)+" | "+(currX - offset.left + scrollLeft)+" | "+(currY - offset.top + scrollTop));
 
             ctx.beginPath();
             ctx.moveTo(prevX - offset.left + scrollLeft, prevY - offset.top + scrollTop);
@@ -109,38 +158,6 @@ $attributes = $this->getAttributeElements($attributes, ['placeholder', 'autocomp
 
             // push result to input hidden
             target.val(canvas.toDataURL());
-        }
-
-        function findxy(res, e) {
-            if (res == 'down') {
-                prevX = currX;
-                prevY = currY;
-                currX = e.clientX;
-                currY = e.clientY;
-
-                flag = true;
-                dot_flag = true;
-
-                if (dot_flag) {
-                    ctx.beginPath();
-                    ctx.fillStyle = x;
-                    ctx.fillRect(currX, currY, 2, 2);
-                    ctx.closePath();
-                    dot_flag = false;
-                }
-            }
-            if (res == 'up' || res == "out") {
-                flag = false;
-            }
-            if (res == 'move') {
-                if (flag) {
-                    prevX = currX;
-                    prevY = currY;
-                    currX = e.clientX;
-                    currY = e.clientY;
-                    draw();
-                }
-            }
         }
     }
 
